@@ -35,11 +35,11 @@ const MailIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
-const roles: Role[] = ["qa", "fs"];
+const roles: Role[] = ["fs", "qa"];
 
 export default function Portfolio() {
   const [lang, setLang] = useState<Lang>("en");
-  const [role, setRole] = useState<Role>("qa");
+  const [role, setRole] = useState<Role>("fs");
   const [menu, setMenu] = useState(false);
 
   useEffect(() => {
