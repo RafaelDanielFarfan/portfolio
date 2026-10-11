@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { jobs, links, projects, skills, statList, ui, type Lang } from "@/lib/content";
+import { jobs, links, projects, roleContent, roleLabel, skills, statList, ui, type Lang, type Role } from "@/lib/content";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -35,8 +35,17 @@ const MailIcon = ({ size = 16 }: { size?: number }) => (
   </svg>
 );
 
+const roles: Role[] = ["qa", "fs"];
+
 export default function Portfolio() {
   const [lang, setLang] = useState<Lang>("en");
+  const [role, setRole] = useState<Role>("qa");
+  const [menu, setMenu] = useState(false);
+
+  useEffect(() => {
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    if (!location.hash) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, []);
 
   useEffect(() => {
     const saved = read("lang");
@@ -56,10 +65,23 @@ export default function Portfolio() {
   };
 
   const t = (k: keyof typeof ui) => ui[k][lang];
-  const cv = `${basePath}/Rafael_Daniel_Farfan_SDET.pdf`;
+  const rc = roleContent[role];
+  const cv = `${basePath}/${rc.cv}`;
+  const closeMenu = () => setMenu(false);
+  const visible = projects.filter((p) => p.roles.includes(role));
+  const orderedSkills = [...skills].sort((a, b) => Number(b.focus === role) - Number(a.focus === role));
+  const switcher = (
+    <div className="switch" data-role={role} role="group" aria-label={t("selectRole")}>
+      {roles.map((r) => (
+        <button key={r} type="button" aria-pressed={role === r} className={role === r ? "on" : ""} onClick={() => setRole(r)}>
+          {roleLabel[r][lang]}
+        </button>
+      ))}
+    </div>
+  );
   const info: [string, string][] = [
     [t("infoName"), "Rafael Daniel Farfán"],
-    [t("infoRole"), "SDET / QE Automation Engineer"],
+    [t("infoRole"), t("infoRoleV")],
     [t("infoLoc"), "Colombia"],
     [t("infoExp"), t("infoExpV")],
     [t("infoLang"), t("infoLangV")],
@@ -70,18 +92,31 @@ export default function Portfolio() {
       <header className="nav">
         <a href="#top" className="logo" aria-label="Home">
           <span>R</span>
-          <span>F</span>
+          <span>D</span>
         </a>
-        <nav>
-          <a href="#top">Home</a>
-          <a href="#about">{t("navAbout")}</a>
-          <a href="#experience">{t("navExp")}</a>
-          <a href="#projects">{t("navProj")}</a>
-          <a href="#skills">{t("navSkills")}</a>
+        <nav id="main-nav" className={menu ? "open" : ""}>
+          <a href="#top" onClick={closeMenu}>Home</a>
+          <a href="#about" onClick={closeMenu}>{t("navAbout")}</a>
+          <a href="#experience" onClick={closeMenu}>{t("navExp")}</a>
+          <a href="#projects" onClick={closeMenu}>{t("navProj")}</a>
+          <a href="#skills" onClick={closeMenu}>{t("navSkills")}</a>
+          <a href="#contact" onClick={closeMenu}>{t("navContact")}</a>
         </nav>
         <div className="tools">
           <button className="lang" onClick={toggleLang} aria-label="Language">{lang === "en" ? "ES" : "EN"}</button>
-          <a className="pill" href="#contact">{t("navContact")}</a>
+          <a className="pill contact-pill" href="#contact">{t("navContact")}</a>
+          <button
+            type="button"
+            className={`burger${menu ? " open" : ""}`}
+            aria-label="Menu"
+            aria-expanded={menu}
+            aria-controls="main-nav"
+            onClick={() => setMenu((m) => !m)}
+          >
+            <i />
+            <i />
+            <i />
+          </button>
         </div>
       </header>
 
@@ -89,27 +124,28 @@ export default function Portfolio() {
         <section className="hero">
           <div className="vert vert-left">
             <i />
-            <span>Full Stack</span>
+            <span>SDET · Full Stack</span>
             <i />
           </div>
 
           <div className="portrait">
             <div className="aura" aria-hidden="true" />
-            <div className="vert-title" aria-hidden="true">SDET</div>
+            <div className={`vert-title${role === "fs" ? " long" : ""}`} aria-hidden="true">{rc.ghost}</div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`${basePath}/portrait.webp`} alt="Rafael Daniel Farfán" width={900} height={855} />
             <h1>
               <span>Rafael</span>
-              <span>Farfán</span>
+              <span>Daniel</span>
             </h1>
           </div>
 
           <div className="hero-copy">
-            <p className="tag">{t("eyebrow")}</p>
-            <p className="lead">{t("lead")}</p>
+            {switcher}
+            <p className="tag">{rc.eyebrow[lang]}</p>
+            <p className="lead">{rc.lead[lang]}</p>
             <div className="cta">
               <a className="pill solid" href="#projects">{t("portfolioBtn")}</a>
-              <a className="pill" href={cv}>{t("ctaCv")}</a>
+              <a className="pill" href={cv} download target="_blank" rel="noopener noreferrer">{t("ctaCv")}</a>
             </div>
           </div>
 
@@ -135,7 +171,7 @@ export default function Portfolio() {
               </dl>
             </div>
             <div className="stats">
-              {statList.map((s) => (
+              {statList[role].map((s) => (
                 <div key={s.value}>
                   <b>{s.value}</b>
                   <span>{s.label[lang]}</span>
@@ -164,13 +200,16 @@ export default function Portfolio() {
 
         <section id="projects">
           <h2>{t("projH")}</h2>
+          {switcher}
           <div className="grid">
-            {projects.map((p) => {
+            {visible.map((p) => {
+              const featured = p.featured?.includes(role);
               const main = p.live ?? p.href;
               const gitlab = p.href?.includes("gitlab");
               return (
-                <article key={p.name} className={`card${p.featured ? " featured" : ""}`}>
-                  {p.featured && <span className="badge">{t("featured")}</span>}
+                <article key={p.name} className={`card${featured ? " featured" : ""}`}>
+                  {featured && <span className="badge">{t("featured")}</span>}
+                  {p.production && <span className="prod"><i aria-hidden="true" />{t("prod")}</span>}
                   <h3>
                     <a className="stretch" href={main} target="_blank" rel="noopener noreferrer">
                       {p.name}
@@ -200,7 +239,7 @@ export default function Portfolio() {
         <section id="skills">
           <h2>{t("stack")}</h2>
           <div className="skills">
-            {skills.map((s) => (
+            {orderedSkills.map((s) => (
               <div key={s.title.en}>
                 <h3>{s.title[lang]}</h3>
                 <ul className="chips">{s.items.split(" · ").map((c) => <li key={c}>{c}</li>)}</ul>
